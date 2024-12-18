@@ -1,0 +1,149 @@
+---
+title: "Distribution of parameters_LHS"
+author: "Ira Wardani"
+date: "2024-12-05"
+output: html_document
+---
+```{r}
+
+## set working directory
+setwd("D:/PBK model")
+
+```
+
+```{r}
+
+# Load necessary library
+library(ggplot2)
+library(lhs)
+
+```
+
+```{r}
+
+# Define parameters based on your data
+
+parameters <- list(
+  Iing = list(dist = "normal", mean = 50, sd = (70 - 30) / 3.92), # SD estimated from 95% CI
+  fabs = list(dist = "normal", mean = 0.00003296, sd = (0.0000423 - 0.000006) / 3.92), # SD estimated from 95% CI
+  Kgi_lym = list(dist = "beta", shape1 = 5, shape2 = 2), # Beta skewed to the left
+  Kfec = list(dist = "normal", mean = 0.719, sd = (1.32 - 0.5) / 3.92), # SD estimated from 95% CI
+  Kmax_gi = list(dist = "beta", shape1 = 3, shape2 = 1.5), # Beta skewed to the left
+  K50_gi = list(dist = "beta", shape1 = 5, shape2 = 2), # Beta skewed to the left
+  Krelease_gi = list(dist = "beta", shape1 = 4, shape2 = 1.2), # Beta skewed to the left
+  ngi = list(dist = "beta", shape1 = 3, shape2 = 1.5) # Beta skewed to the left
+)
+
+```
+
+```{r}
+
+# Number of samples
+n_samples <- 10000
+n_params <- length(parameters)
+
+```
+
+```{r}
+
+# Generate a Latin Hypercube Sample
+lhs_samples <- randomLHS(n_samples, n_params)
+
+```
+
+```{r}
+
+# Initialize a matrix to store transformed samples
+sample_matrix <- matrix(nrow = n_samples, ncol = n_params)
+colnames(sample_matrix) <- names(parameters)
+
+```
+
+```{r}
+
+# Function to transform LHS samples to specified distributions
+transform_lhs <- function(lhs_sample, param) {
+  if (param$dist == "normal") {
+    return(qnorm(lhs_sample, mean = param$mean, sd = param$sd))
+  } else if (param$dist == "beta") {
+    return(qbeta(lhs_sample, shape1 = param$shape1, shape2 = param$shape2))
+  } else {
+    stop("Unsupported distribution type.")
+  }
+}
+
+```
+
+```{r}
+
+# Transform each LHS sample to the specified parameter distributions
+for (i in seq_along(parameters)) {
+  param <- parameters[[i]]
+  sample_matrix[, i] <- transform_lhs(lhs_samples[, i], param)
+}
+
+# Save the matrix to a CSV file
+write.csv(sample_matrix, file = "model_parameter_samples_lhs.csv", row.names = FALSE)
+
+```
+
+```{r}
+
+# Plot histograms for all distributions
+
+# Convert the sample matrix to a data frame for plotting
+sample_df <- as.data.frame(sample_matrix)
+
+```
+
+```{r}
+
+# Set up a 3x3 grid for plotting
+# Save all plots to a PNG file
+
+output_file <- "parameter_distributions_LHS.png" # Output file name
+png(output_file, width = 1500, height = 1200) # Open a PNG device with specified dimensions
+
+
+par(mfrow = c(3, 3)) # 3 rows, 3 columns
+par(mar = c(4, 4, 2, 1)) # Adjust margins for better spacing
+
+# Loop through each parameter and plot its distribution
+for (param_name in names(parameters)) {
+  # Extract parameter samples
+  param_samples <- sample_df[[param_name]]
+  
+  # Calculate mean and standard deviation
+  param_mean <- mean(param_samples)
+  param_sd <- sd(param_samples)
+  
+  # Plot histogram and density
+  hist(
+    param_samples, 
+    breaks = 30, 
+    freq = FALSE, 
+    col = "lightblue", 
+    border = "black", 
+    main = paste("Distribution of", param_name), 
+    xlab = param_name, 
+    ylab = "Density",
+    cex.main = 1.5
+  )
+  
+  # Add density line
+  lines(density(param_samples), col = "red", lwd = 2)
+  
+  # Add legend with mean and sd
+  legend(
+    "topleft", 
+    legend = c(
+      sprintf("Mean = %.4f", param_mean), 
+      sprintf("SD = %.4f", param_sd)
+    ), 
+    bty = "n", 
+    cex = 1.3, 
+    text.col = "black"
+  )
+}
+
+```

@@ -1,0 +1,363 @@
+---
+title: "NMP-PBK model"
+author: Ira Wardani
+advisor: Nur Hazimah Mohammed Nor, Merel Kooi, Albert A Koelmans
+date: November 2024 
+structure: Respiratory system (upper airways, tracheobronchial region, pulmonary region), lumen, GIT, spleen, liver, kidney, heart, brain, rest
+output: html_document
+---
+
+```{r}
+
+## set working directory
+setwd("D:/PBK model")
+
+```
+
+```{r}
+
+# Load necessary library
+library(deSolve) # solving differention equations
+library(ggplot2) # plotting the graph
+library(gridExtra) # plotting the graph
+library(dplyr)   # For data transformation
+library(pracma)  # For calculating AUC
+
+
+```
+
+```{r}
+
+# Read the CSV file
+model_parameters <- read.csv("model_parameters_init.csv", stringsAsFactors = FALSE)
+
+# Convert the "Parameter" column to row names
+rownames(model_parameters) <- model_parameters$Parameter
+
+
+```
+
+```{r}
+
+## Initial conditions
+initial_state <- c(
+  NaB = 1, 
+  NaPC = 0, 
+  NvB = 1, 
+  NvPC = 0, 
+  Nua = 1, 
+  Ntra = 1, 
+  Nlym = 1, 
+  NpulB = 1, 
+  NpulT = 1, 
+  NpulPC = 0, 
+  NhB = 1, 
+  NhT = 1, 
+  NhPC = 0, 
+  Nlum = 1, 
+  NgiB = 1, 
+  NgiT = 1, 
+  NgiPC = 0, 
+  NsB = 1, 
+  NsT = 1, 
+  NsPC = 0, 
+  NliB = 1, 
+  NliT = 1, 
+  NliPC = 0, 
+  NkB = 1, 
+  NkT = 1, 
+  NkPC = 0, 
+  NbrB = 1, 
+  NbrT = 1, 
+  NbrPC = 0, 
+  NresB = 1, 
+  NresT = 1, 
+  NresPC = 0, 
+  Nurine = 1, 
+  Nbile = 1, 
+  Nfeces = 1, 
+  AUCblood = 1, 
+  AUClym = 1, 
+  AUCua = 1, 
+  AUCtra = 1, 
+  AUCpul = 1, 
+  AUCh = 1, 
+  AUClum = 1, 
+  AUCgi = 1, 
+  AUCs = 1, 
+  AUCli = 1, 
+  AUCk = 1, 
+  AUCbr = 1, 
+  AUCres = 1
+)
+
+```
+
+```{r}
+
+# Time points for simulation
+times <- seq(0, 48, by = 1)  # Simulate from 0 to 48 hours
+
+```
+
+```{r}
+
+## Equation for estimation of the rate of each compartment
+
+# Define the model function
+pbk_model <- function(times, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    # Use the variables defined in the state
+    Ca <- NaB/Va
+    Cv <- NvB/Vv
+    Clym <- Nlym/Vlym
+    Cua <- Nua/Vua
+    Ctra <- Ntra/Vtra
+    Cvpul <- NpulB/VpulB
+    Ctpul <- NpulT/VpulT
+    Cvh <- NhB/VhB
+    Cth <- NhT/VhT
+    Clum <- Nlum/Vlum
+    Cvgi <- NgiB/VgiB
+    Ctgi <- NgiT/VgiT
+    Cvs <- NsB/VsB
+    Cts <- NsT/VsT
+    Cvli <- NliB/VliB
+    Ctli <- NliT/VliT
+    Cvk <- NkB/VkB
+    Ctk <- NkT/VkT                  
+    Cvbr <- NbrB/VbrB
+    Ctbr <- NbrT/VbrT
+    Cvres <- NresB/VresB 
+    Ctres <- NresT/VresT
+    # Endocytosis uptake in different tissues
+    Kup_a <- Kmax_blood * (1 - NaPC / (PCcap_a * APC_a)) # artery
+    Kup_v <- Kmax_blood * (1 - NvPC / (PCcap_v * APC_v)) # vein
+    Kup_pul <- Kmax_pul * (1 - NpulPC / (PCcap_pul * APC_pul)) # pulmonary
+    Kup_gi <- Kmax_gi * (1 - NgiPC / (PCcap_gi * APC_gi)) # intestine
+    Kup_s <- Kmax_s * (1 - NsPC / (PCcap_s * APC_s)) # spleen
+    Kup_li <- Kmax_li * (1 - NliPC / (PCcap_li * APC_li)) # liver
+    Kup_k <- Kmax_k * (1 - NkPC / (PCcap_k * APC_k)) # kidney
+    Kup_br <- Kmax_br * (1 - NbrPC / (PCcap_br * APC_br)) # brain
+    Kup_h <- Kmax_h * (1 - NhPC / (PCcap_h * APC_h)) # heart
+    Kup_res <- Kmax_res * (1 - NresPC / (PCcap_res * APC_res)) # rest of body
+    # Endocytosis rate calculations (Hill coefficient)
+    # Kup_blood <- (Kmax_blood * times^nblood) / (K50_blood^nblood + times^nblood) 
+    # Kup_pul <- (Kmax_pul * times^npul) / (K50_pul^npul + times^npul)
+    # Kup_h <- (Kmax_h * times^nh) / (K50_h^nh + times^nh) 
+    # Kup_gi <- (Kmax_gi * times^ngi) / (K50_gi^ngi + times^ngi) 
+    # Kup_s <- (Kmax_s * times^ns) / (K50_s^ns + times^ns) 
+    # Kup_li <- (Kmax_li * times^nli) / (K50_li^nli + times^nli) 
+    # Kup_k <- (Kmax_k * times^nk) / (K50_k^nk + times^nk) 
+    # Kup_br <- (Kmax_br * times^nbr) / (K50_br^nbr + times^nbr) 
+    # Kup_res <- (Kmax_res * times^nres) / (K50_br^nres + times^nres) 
+    # Define differential equations
+    dNaB <- QC*(Cvpul - Ca) - (Kup_a*NaB) + (Kres_blood*NaPC)
+    dNaPC <- (Kup_a*NaB) - (Kres_blood*NaPC)
+    dNvB <- (Qgi + Qs + Qli)*Cvli + (Qk*Cvk) + (Qh*Cvh) + (Qbr*Cvbr) + (Qres*Cvres) + (Nlym*Klym_ven) - (QC*Cv) - (Kup_v*NvB) + (Kres_blood*NvPC)
+    dNvPC <- (Kup_v*NvB) - (Kres_blood*NvPC)
+    dNlym <- (NpulT*Kpul_lym) + (NhT*Kh_lym) + (NgiT*Kgi_lym) + (NsT*Ks_lym) + (NliT*Kli_lym) + (NkT*Kk_lym) + (NbrT*Kbr_lym) + (NresT*Kres_lym) - (Nlym*Klym_ven) 
+    dNua <- Iinh_ua*(1-fexh) + (NpulT*Kpul_ua) - (Nua*Kua_tra) - (Nua*Kua_lum)
+    dNtra <- Iinh_tra + (Nua*Kua_tra) + (NpulT*Kpul_tra) - (Ntra*Ktra_lum) - (Ntra*Ktra_pul)
+    dNpulB <- QC * (Cv - Ca) - Xpul * QC * (Cvpul - Ctpul / Ppul)
+    dNpulT <- Iinh_pul + QC * (Cv-Ca) + (Ntra*Ktra_pul) + (NpulPC*Kpul_tra) + (NpulT*Kup_pul) +
+      (NpulPC*Kres_pul)-(NpulT*Kpul_lym)
+    dNpulPC <- (Kup_pul*NpulT) - (Kres_pul*NpulPC)
+    dNhB <- Qh*(Ca-Cvh) - Xh*Qh*(Cvh-Cth/Ph)
+    dNhT <- Xh*Qh*(Cvh-Cth/Ph) - (Kup_h*NhT) + (Kres_h*NhPC) - (NhT*Kh_lym)
+    dNhPC <- (Kup_h*NhT) - (Kres_gi*NhPC)
+    dNlum <- Iing + (Nua*Kua_lum) + (NliT*Kbile) - (Nlum*Klum_gi) - (Nlum*Kfec)
+    dNgiB <- Qgi*(Ca-Cvgi) - Xgi*Qgi*(Cvgi-Ctgi/Pgi)
+    dNgiT <- Xgi*Qgi*(Cvgi-Ctgi/Pgi) - (Kup_gi*NgiT) + (Kres_gi*NgiPC) - (NgiT*Kgi_lym)
+    dNgiPC <- (Kup_gi*NgiT) - (Kres_gi*NgiPC)
+    dNsB <- Qs*(Ca-Cvs) - Xs*Qs*(Cvs-Cts/Ps)
+    dNsT <- Xs*Qs*(Cvs-Cts/Ps) - (Kup_s*NsT) + (Kres_s*NsPC) - (NsT*Ks_lym)
+    dNsPC <- (Kup_s*NsT) - (Kres_s*NsPC)
+    dNliB <- Qli*(Ca-Cvli) + (Qs*Cvs) + (Qgi*Cvgi) - Xli*Qli*(Cvli-Ctli/Pli) - (NliT*Kbile)
+    dNliT <- Xli*Qli*(Cvli-Ctli/Pli) - (Kup_li*NliT) + (Kres_li*NliPC) - (NliT*Kli_lym)
+    dNliPC <- (Kup_li*NliT) - (Kres_li*NliPC)
+    dNkB <- Qk*(Ca-Cvk) - Xk*Qk*(Cvk-Ctk/Pk) - (NkB*Kurine)
+    dNkT <- Xk*Qk*(Cvk-Ctk/Pk) - (Kup_k*NkT) + (Kres_k*NkPC) - (NkT*Kk_lym)
+    dNkPC <- (Kup_k*NkT) - (Kres_k*NkPC)
+    dNbrB <- Qbr*(Ca-Cvbr) - Xbr*Qbr*(Cvbr-Ctbr/Pbr) 
+    dNbrT <- Xbr*Qbr*(Cvbr-Ctbr/Pbr) - (Kup_br*NbrT) + (Kres_br*NbrPC) - (NbrT*Kbr_lym)
+    dNbrPC <- (Kup_br*NbrT) - (Kres_br*NbrPC)
+    dNresB <- Qres*(Ca-Cvres) - Xres*Qres*(Cvres-Ctres/Pres) 
+    dNresT <- Xres*Qres*(Cvres-Ctres/Pres) - (Kup_res*NresT) + (Kres_res*NresPC) - (NresT*Kres_lym)
+    dNresPC <- (Kup_res*NresT) - (Kres_res*NresPC)
+    dNurine <- NkB*Kurine
+    dNbile <- NliT*Kbile
+    dNfeces <- Nlum*Kfec
+    dAUCblood <- (NaB + NaPC +NvB + NvPC)/ Vblood
+    dAUClym <- Nlym/Vlym
+    dAUCua <- Nua/Vua
+    dAUCtra <- Ntra/Vtra
+    dAUCpul <- (NpulB + NpulT + NpulPC)/Vpul
+    dAUCh <- (NhB + NhT + NhPC)/Vh
+    dAUClum <- Nlum/Vlum
+    dAUCgi <- (NgiB + NgiT + NgiPC)/Vgi
+    dAUCs <- (NsB + NsT + NsPC)/Vs
+    dAUCli <- (NliB + NliT + NliPC)/Vli
+    dAUCk <- (NkB + NkT + NkPC)/Vk
+    dAUCbr <- (NbrB + NbrT + NbrPC)/Vbr
+    dAUCres <- (NresB + NresT + NresPC)/Vres
+    # Return the rates of change as a list
+    list(c(dNaB, dNaPC, dNvB, dNvPC, dNua, dNtra, dNlym, dNlum, dNpulB, dNpulT, dNpulPC, 
+           dNgiB, dNgiT,dNgiPC, dNhB, dNhT, dNhPC, dNsB, dNsT, dNsPC, dNliB, dNliT, dNliPC, dNkB,
+           dNkT, dNkPC, dNbrB, dNbrT, dNbrPC, dNresB, dNresT, dNresPC, dNurine, dNbile, dNfeces,
+           dAUCblood, dAUClym, dAUCua, dAUCtra, dAUCpul, dAUClum, dAUCh, dAUCgi, dAUCs, dAUCli,
+           dAUCk, dAUCbr, dAUCres))
+  })
+}
+
+```
+
+
+```{r}
+
+# Run the model
+
+output <- ode(
+  y = initial_state,
+  times = times,
+  func = pbk_model,
+  parms = parameters,
+  method = "rk4",
+)
+
+# Convert output to a data frame
+output_df <- as.data.frame(output)
+
+# View the first few rows of the results
+head(output_df)
+
+```
+
+```{r}
+
+# Create a data frame with total values for each compartment
+result_df <- as.data.frame(output)
+result_df$Blood_Total <- (result_df$NaB + result_df$NaPC + result_df$NvB + result_df$NvPC) / Vblood
+result_df$Lymph_Total <- result_df$Nlym / Vlym
+result_df$Upper_airways_Total <- result_df$Nua / Vua
+result_df$Tracheobronchial_Total <- result_df$Ntra / Vtra
+result_df$Pulmonary_Total <- (result_df$NpulT + result_df$NpulB + result_df$NpulPC) / Vpul
+result_df$Lumen_Total <- result_df$Nlum / Vlum
+result_df$Intestine_Total <- (result_df$NgiT + result_df$NgiB + result_df$NgiPC) / Vgi
+result_df$Spleen_Total <- (result_df$NsT + result_df$NsB + result_df$NsPC) / Vs
+result_df$Liver_Total <- (result_df$NliT + result_df$NliB + result_df$NliPC) / Vli
+result_df$Kidney_Total <- (result_df$NkT + result_df$NkB + result_df$NkPC) / Vk
+result_df$Brain_Total <- (result_df$NbrT + result_df$NbrB + result_df$NbrPC) / Vbr
+result_df$Heart_Total <- (result_df$NhT + result_df$NhB + result_df$NhPC) / Vh
+result_df$Rest_Total <- (result_df$NresT + result_df$NresB + result_df$NresPC) / Vres
+
+# Create a function to plot individual graphs
+create_plot <- function(df, y_value, title) {
+  ggplot(df, aes(x = time, y = .data[[y_value]])) +
+    geom_line(color = "blue") +
+    labs(title = title,
+         x = "Time (hours)",
+         y = "Number of NMPs") +
+    theme_minimal() +
+    theme(axis.text = element_text(size = 8),  # Adjust axis text size
+          axis.title = element_text(size = 10)) # Adjust axis title size
+}
+
+# Create individual plots for each compartment
+plot_list <- list(
+  create_plot(result_df, "Blood_Total", "Blood"),
+  create_plot(result_df, "Lymph_Total", "Lymphatic Node"),
+  create_plot(result_df, "Upper_airways_Total", "Upper Airways"),
+  create_plot(result_df, "Tracheobronchial_Total", "Tracheobronchial Region"),
+  create_plot(result_df, "Pulmonary_Total", "Pulmonary Tissue"),
+  create_plot(result_df, "Lumen_Total", "Lumen"),
+  create_plot(result_df, "Intestine_Total", "Intestine"),
+  create_plot(result_df, "Spleen_Total", "Spleen"),
+  create_plot(result_df, "Liver_Total", "Liver"),
+  create_plot(result_df, "Kidney_Total", "Kidney"),
+  create_plot(result_df, "Brain_Total", "Brain"),
+  create_plot(result_df, "Heart_Total", "Heart"),
+  create_plot(result_df, "Rest_Total", "Rest of Body")
+)
+
+# Output file name
+output_file <- "NMPs_distributions.png"
+
+# Save the plots to a PNG file
+png(output_file, width = 1500, height = 1200) # Open a PNG device with specified dimensions
+grid.arrange(grobs = plot_list, ncol = 3)    # Arrange the plots in a 3-column grid
+dev.off()                                    # Close the PNG device
+
+
+```
+
+```{r}
+
+# Total "amount" of NMPs in tissues
+
+Nblood <- NaB + NaPC + NvB + NvPC
+Nua <- Nua
+Ntra <- Ntra
+Npul <- NpulB + NpulT + NpulPC
+Nlum <- Nlum
+Nlym <- Nlym
+Nh <- NhB + NhT + NhPC
+Ngi <- NgiB + NgiT + NgiPC
+Ns <- NsB + NsT + NsPC
+Nli <- NliB + NliT + NliPC
+Nk <- NkB + NkT + NkPC
+Nbr <- NbrB + NbrT + NbrPC
+Nres <- NresB + NresT + NresPC
+
+```
+
+```{r}
+
+# Mass balance
+
+Total_NMPs <- Nblood + Nlym + Nua + Ntra + Npul + Nh + Nlum + Ngi + Ns + Nli + Nk 
++ Nbr + Nres + Nurine + Nfeces
+
+Balance <- Total_dose - Total_NMPs
+
+```
+
+```{r}
+
+## Total "concentration" of NMPs in tissues
+
+Conc_blood <- Nblood/Vblood
+Conc_lym <- Nlym/Vlym
+Conc_ua <- Nua/Vua
+Conc_tra <- Ntra/Vtra
+Conc_pul <- (NpulB + NpulT + NpulPC)/Vpul
+Conc_h <- (NhB + NhT + NhPC)/Vh
+Conc_lum <- Nlum/Vlum
+Conc_gi <- (NgiB + NgiT + NgiPC)/Vgi
+Conc_s <- (NsB + NsT + NsPC)/Vs
+Conc_li <- (NliB + NliT + NliPC)/Vli
+Conc_k <- (NkB + NkT + NkPC)/Vk
+Conc_br <- (NbrB + NbrT + NbrPC)/Vbr
+Conc_res <- (NresB + NresT + NresPC)/Vres
+Conc_urine <- Nurine
+Conc_feces <- Nfeces
+Conc_AUCblood <- AUCblood
+Conc_AUClym <- AUClym
+Conc_AUCua <- AUCua
+Conc_AUCtra <- AUCtra
+Conc_AUCpul <- AUCpul
+Conc_AUCh <- AUCh
+Conc_AUClum <- AUClum
+Conc_AUCgi <- AUCgi
+Conc_AUCli <- AUCli
+Conc_AUCk <- AUCk
+Conc_AUCbr <- AUCbr
+Conc_AUCres <- AUCres
+
+```
+
+
+
+
+
+

@@ -1,0 +1,124 @@
+---
+title: "PBK_GIT model_LHS"
+author: "Ira Wardani"
+date: "2024-12-05"
+output: html_document
+---
+
+```{r}
+## set working directory
+setwd("D:/PBK model")
+
+```
+
+```{r}
+
+# Load necessary libraries
+library(deSolve) # For solving ODEs
+library(dplyr)   # For data transformation
+library(pracma)  # For calculating AUC
+
+```
+
+```{r}
+
+# Load parameter samples from file
+parameters_df <- read.csv("model_parameter_samples_lhs.csv")
+
+```
+
+```{r}
+
+# Fixed values
+V_gi <- 0.001
+Qgi <- 0.146
+NPC_gi <- 10 
+Ca <- 15
+Cv_gi <- 0.8 * Ca
+
+```
+
+```{r}
+
+# Define the model function
+pbk_model <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    # Tissue uptake rate (Hill function)
+    Kup_gi <- (Kmax_gi * t^ngi) / (K50_gi^ngi + t^ngi)
+    
+    # Dose ingestion rate (particle number/kg tissue/h)
+    Dose_ing <- Iing / V_gi
+    
+    # Differential equations
+    dNgi_t <- (Dose_ing * fabs) + (Qgi * (Ca - Cv_gi)) - (Kup_gi * Ngi_t) +
+      (Krelease_gi * NPC_gi) - (Ngi_t * Kgi_lym) - (Ngi_t * Kfec)
+    
+    return(list(c(dNgi_t)))
+  })
+}
+
+```
+
+```{r}
+
+# Time points for simulation
+times <- seq(0, 48, by = 0.1) # From 0 to 48 hours with step size 0.1
+
+```
+
+```{r}
+
+# Prepare matrix to store results
+results <- data.frame(
+  AUC_gi = numeric(nrow(parameters_df)),
+  Cmax_gi = numeric(nrow(parameters_df))
+)
+
+```
+
+```{r}
+
+# Loop through parameter samples
+for (i in 1:nrow(parameters_df)) {
+  # Extract parameters for this iteration
+  params <- parameters_df[i, ]
+  
+  # Define initial state
+  state <- c(Ngi_t = 0) # Initial concentration in GI tissue
+  
+  # Solve the model
+  out <- ode(
+    y = state,
+    times = times,
+    func = pbk_model,
+    parms = as.list(params)
+  )
+  
+  # Convert output to data frame
+  out_df <- as.data.frame(out)
+  
+  # Calculate AUC and Cmax
+  AUC_gi <- trapz(out_df$time, out_df$Ngi_t + NPC_gi) / V_gi # Area under the curve
+  Cmax_gi <- max(out_df$Ngi_t / V_gi) # Maximum concentration
+  
+  # Store results
+  results$AUC_gi[i] <- AUC_gi
+  results$Cmax_gi[i] <- Cmax_gi
+}
+
+```
+
+```{r}
+
+# Add results to the original parameter samples data frame
+parameters_df$AUC_gi <- results$AUC_gi
+parameters_df$Cmax_gi <- results$Cmax_gi
+
+```
+
+```{r}
+
+# Save results to a new CSV file
+write.csv(parameters_df, "model_output_with_uncertainty_lhs.csv", row.names = FALSE)
+
+```

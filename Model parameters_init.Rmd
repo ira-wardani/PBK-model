@@ -1,0 +1,430 @@
+---
+title: "Model parameters_initial values"
+author: Ira Wardani
+advisor: Nur Hazimah Mohammed Nor, Merel Kooi, Albert A Koelmans
+date: November 2024 
+structure: Respiratory system (upper airways, tracheobronchial region, pulmonary region), lumen, GIT, spleen, liver, kidney, heart, brain, rest
+output: html_document
+---
+
+```{r}
+
+# Set working directory
+setwd("D:/PBK model")
+
+```
+
+```{r}
+
+## Doses
+Iinh <- 1000		# particle number/kg BW/d			
+Iing <-  500		# particle number/kg BW/d	
+
+```
+
+```{r}
+
+## Deposited fraction
+fua <- 0.211 # unitlesss, deposited fraction in the upper airways; Li et al., 2015
+ftra <- 0.0175 # unitlesss, deposited fraction in the tracheobronchial region; Li et al., 2015
+fpul <- 0.0436 # unitlesss, deposited fraction in the pulmonary region	; Li et al., 2015
+fexh <- 0.05 # unitlesss, exhaled fraction from the upper airways; Jabbal et al., 2017
+
+```
+
+```{r}
+
+## Transfer fraction
+Kua_lum	<- 0.335  # /h, transfer fraction from upper airways to lumen; Li et al., 2015
+Kua_tra <- 0.4 # /h, transfer fraction from upper airways to tracheobronchial region; ICRP 1994
+Ktra_lum <-  0.0055 # /h, transfer fraction from tracheobronchial to lumen	; Li et al., 2015
+Ktra_pul <-  0.1  # /h, transfer fraction from tracheobronchial to pulmonary; ICRP, 1994, assume as human value
+Kpul_ua <-  0.002 # /h, transfer fraction from pulmonary to upper airways; ICRP, 1994, assume as human value
+Kpul_tra <-  0.00086 # /h, transfer fraction from pulmonary to trachebronchial; Li et al., 2015
+Klum_gi <-  0.000006 # /h, transfer fraction from lumen to the GIT; Chou et al., 2022
+
+```
+
+```{r}
+
+## Body weight and fraction of blood flow to tissues
+BW <- 0.025 # kg, body weight; Brown et al., 1997
+QCC <- 16.5 # L/h/kg^0.75, Cardiac output; Value obtained ; Brown et al., 1997, Cardiac Output (L/min) = 0.275*(BW)^0.75
+QpulC <- 1  # % of QCC, Fraction of blood flow to pulmonary; Brown et al., 1997, 
+QhC <- 0.066 # % of QCC, Fraction of blood flow to heart; Brown et al., 1997, Table 23 
+QgiC <- 0.141 # % of QCC, Fraction of blood flow to GI tract	; Lee et al., 2009
+QsC <- 0.011 # % of QCC, Fraction of blood flow to spleen; Davis and Morris, 1993, Table III
+QliC <- 0.161 # % of QCC, Fraction of blood flow to liver; Brown et al., 1997, Table 23
+QkC <- 0.091 # % of QCC, Fraction of blood flow to kidney; Brown et al., 1997, Table 23
+QbrC <- 0.033 # % of QCC, Fraction of blood flow to brain; Brown et al., 1997, Table 23
+QresC <-  0.497 # % of QCC, Fraction of blood flow to rest; Brown et al., 1997, Table 23
+
+```
+
+```{r}
+
+## Fraction of volume of tissues out of body weight
+
+VuaC <- 0.002	# % of BW,  Fraction of volume of upper airways	; Brown et al., 1997, Table 21, 4
+VtraC <- 0.003	# % of BW,  Fraction of volume of tracheobronchial ; Brown et al., 1997, Table 21, 4
+VpulC <- 0.007 # % of BW,  Fraction of volume of pulmonary; Brown et al., 1997, Table 21, 4
+VhC <- 0.005 # % of BW,  Fraction of volume of heart; Brown et al., 1997, Table 21, 4
+VlumC <- 0.015 # % of BW,  Fraction of volume of lumen ; Brown et al., 1997, Table 21, 4
+VgiC <- 0.042 # % of BW,  Fraction of volume of GI tract ; Brown et al., 1997, Table 21
+VsC <- 0.005 # % of BW,  Fraction of volume of spleen ; Davis and Morris (1993), Table I
+VliC <- 0.055 # % of BW,  Fraction of volume of liver ; Brown et al., 1997, Table 21
+VkC <- 0.017 # % of BW,  Fraction of volume of kidney ; Brown et al., 1997, Table 21
+VbrC <- 0.017 # % of BW,  Fraction of volume of brain ; Brown et al., 1997, Table 21
+VbloodC	<- 0.049 # % of BW,  Fraction of volume of blood; Brown et al., 1997, Table 21
+VlymC <- 0.0045 # % of BW,  Fraction of volume of lymph nodes ; Aborig et al., 2019
+
+```
+
+```{r}
+
+## Fraction of blood volume in tissues
+
+BVpul <- 0.50 # % of Vpul,Fraction of blood volume in pulmonary ; Brown et al., 1997, Table 30
+BVh <- 0.05 # % of Vh, 	Fraction of blood volume in heart ; Brown et al., 1997, Table 30
+BVgi <- 0.03 # % of Vgi, Fraction of blood volume in GI tract ; Calculated from Abuqayyas et al., 2012, Table 6
+BVs <- 0.17 # % of Vs, 	Fraction of blood volume in spleen; Brown et al., 1997, Table 30
+BVli <- 0.31 # % of Vli, Fraction of blood volume in liver; Brown et al., 1997, Table 30
+BVk <- 0.24 # % of Vk, 	Fraction of blood volume in kidney; Brown et al., 1997, Table 30
+BVbr <- 0.03 # % of Vbr, Fraction of blood volume in brain ; Brown et al., 1997, Table 30
+BVres <- 0.04 #  % of Vres,Fraction of blood volume in rest of body; Brown et al., 1997, Assumed the same as muscle
+
+```
+
+```{r}
+## Lymphatic fluid flow rates in different tissues (L/h)
+KlymC	<- 1.123e-3 # L/h, Total lymphatic flow rates from different tissues
+Kpul_lymC <- 9e-6 # L/h, lymphatic fluid from rates from pulmonary region; Aborig et al., 2019
+Kh_lymC	<- 1.8e-5 # L/h,lymphatic fluid from rates from heart	; Aborig et al., 2019
+Kgi_lymC <- 4.17e-4	# L/h, lymphatic fluid from rates from pulmonary region; Aborig et al., 2019
+Ks_lymC	<- 7.9e-5 # L/h, lymphatic fluid from rates from heart; Aborig et al., 2019
+Kli_lymC <- 3.07e-4	# L/h,	lymphatic fluid from rates from pulmonary region; Aborig et al., 2019
+Kk_lymC	<- 4e-5 # L/h, lymphatic fluid from rates from heart	; Aborig et al., 2019
+Kbr_lymC <- 4e-7 # L/h, lymphatic fluid from rates from pulmonary region; Aborig et al., 2019
+
+```
+
+```{r}
+## Partition coefficient
+Ppul <-  0.15 # Unitless, Partition coefficient of Pulmonary; Lin et al., 2016, Table 1, 100 nm
+Ph <- 0.15 # Unitless, Partition coefficient of Heart; Lin et al., 2016, Table 1, 100 nm
+Pgi <- 0.15 # Unitless, Partition coefficient of GI; Lin et al., 2016, Table 1, 100 nm
+Ps <- 0.15 # Unitless, Partition coefficient of Spleen; Lin et al., 2016, Table 1, 100 nm
+Pli <- 0.08 # Unitless, Partition coefficient of Liver; Lin et al., 2016, Table 1, 100 nm
+Pk <- 0.15 # Unitless, Partition coefficient of Kidney; Lin et al., 2016, Table 1, 100 nm
+Pbr <- 0.15 # Unitless, Partition coefficient of Brain; Lin et al., 2016, Table 1, 100 nm
+Plym <- 0.15 # Unitless, Partition coefficient of Lymph; Lin et al., 2016, assume the same as other organs (except liver)
+Pres <- 0.15 # Unitless, Partition coefficient of Rest of body	; Lin et al., 2016, Table 1, 100 nm
+
+```
+
+```{r}
+
+## Membrane-limited permeability
+Xpul <- 0.001 # Unitless, Membrane-limited permeability coefficient of Pulmonary; Lin et al., 2016, Table 1, 100 nm
+Xh <- 0.001 # bUnitless, Membrane-limited permeability coefficient of Heart; Lin et al., 2016, Table 1, 100 nm
+Xgi <- 0.001 # Unitless, Membrane-limited permeability coefficient of GI tract; Lin et al., 2016, Table 1, 100 nm
+Xs <- 0.001 # Unitless, Membrane-limited permeability coefficient of Spleen; Lin et al., 2016, Table 1, 100 nm
+Xli <- 0.001 # Unitless, Membrane-limited permeability coefficient of Liver; Lin et al., 2016, Table 1, 100 nm
+Xk <- 0.001 # Unitless, Membrane-limited permeability coefficient of Kidney; Lin et al., 2016, Table 1, 100 nm 
+Xbr <- 0.000001 # Unitless, Membrane-limited permeability coefficient of Brain; Lin et al., 2016, Table 1, 100 nm
+Xlym <- 0.001 # Unitless, Membrane-limited permeability coefficient of Lymph; Lin et al., 2016, assume the same as other organs
+Xres <- 0.000001 #Unitless, Membrane-limited permeability coefficient of Rest of body; Lin et al., 2016, Table 1, 100 nm
+
+```
+
+
+```{r}
+
+## maximum uptake by PCs (Deng, 2019)
+Kmax_blood <- 16.1 
+Kmax_pul <- 302 
+Kmax_s <- 4.865 
+Kmax_gi <- 1.1 
+Kmax_li <- 7.65 
+Kmax_k <- 0.07
+Kmax_br <- 1e-5 
+Kmax_h <- 3 
+Kmax_res <- 3 
+
+## release rate constant by PCs (Deng, 2019)
+Kres_blood <- 1e-6 
+Kres_pul <- 4.77 
+Kres_s <- 1.041 
+Kres_gi <- 0.5 
+Kres_li <- 4.074 
+Kres_k <- 0.001 
+Kres_br <- 1e-7 
+Kres_h <- 0.3 
+Kres_res <- 0.3 
+
+## uptake capacity by PCs (Chou, 2022)
+PCcap_a <- 100 
+PCcap_v <- 0.04 
+PCcap_pul <- 100 
+PCcap_gi <- 100
+PCcap_s <- 100 
+PCcap_li <- 100 
+PCcap_k <- 100 
+PCcap_br <- 100 
+PCcap_h <- 100
+PCcap_res <- 1.5 
+
+## number of PCs (Chou, 2022)            
+APC_a <- 14300 
+APC_v <- 1e6 
+APC_pul <- 9210000  
+APC_gi <- 1e6
+APC_s <- 228000000
+APC_li <- 27000000
+APC_k <- 390000
+APC_br <- 1e-6
+APC_h <- 1e6
+APC_res <- 100 
+
+```
+
+```{r}
+
+## Endocytic parameters (assuming fit to Hill coefficient) in blood;
+## The values will change once we have data to calibrate
+
+## Kmax_blood <- 0.4	# /h,	Maximum uptake rate constant of phagocytic cells; Lin et al., 2016
+K50_blood	<- 5	# h,	Time reaching half of Kmax; Lin et al., 2016 (generic value for 100 nm)
+nblood <- 2	# unitless,	the Hill coefficient; Lin et al., 2016 (generic value for 100 nm)
+## Kres_blood <- 0.005	# /h, Release rate constant of phagocytic cells	; Lin et al., 2016
+
+```
+
+```{r}
+
+## Endocytic parameters (assuming fit to Hill coefficient) in pulmonary; 
+## The values will change once we have data to calibrate
+
+# Kmax_pul <- 2.95062	# /h,	Maximum uptake rate constant of phagocytic cells; Li et al., 2021
+K50_pul	<- 5 # h,	Time reaching half of Kmax; Li et al., 2021	
+npul <- 3 # unitless, the Hill coefficient	; Li et al., 2021
+# Kres_pul <-  1.99111e-8	# /h, Release rate constant of phagocytic cells; Li et al., 2021
+
+```
+
+```{r}
+
+## Endocytic parameters (assuming fit to Hill coefficient) in heart; 
+## The values will change once we have data to calibrate
+
+## Kmax_h <-  6.2 # /h, Maximum uptake rate constant of phagocytic cells	; Li et al., 2021
+K50_h	<- 2 # h,	Time reaching half of Kmax; Li et al., 2021	
+nh <- 2 # unitless, the Hill coefficient; Li et al., 2021
+## Kres_h <- 1.3e-9 # /h, Release rate constant of phagocytic cells ; Li et al., 2021
+
+```
+
+```{r}
+
+## Endocytic parameters (assuming fit to Hill coefficient) in GI tract;
+## The values will change once we have data to calibrate
+
+## Kmax_gi	<- 1 # /h, Maximum uptake rate constant of phagocytic cells	; Chou et al., 2022
+K50_gi <- 6 # h,	Time reaching half of Kmax ; Lin et al., 2016 (generic value for 100 nm)
+ngi <- 3 # unitless, the Hill coefficient	; Lin et al., 2016 (generic value for 100 nm)
+## Kres_gi <- 0.001 # /h, Release rate constant of phagocytic cells; Chou et al., 2022
+
+```
+
+```{r}
+
+## Endocytic parameters (assuming fit to Hill coefficient) in spleen; 
+## The values will change once we have data to calibrate
+
+## Kmax_s	<- 170 # /h, Maximum uptake rate constant of phagocytic cells; Li et al., 2021
+K50_s <- 7	# h, Time reaching half of Kmax; Li et al., 2021
+ns <- 5 # unitless,	the Hill coefficient; Li et al., 2021
+## Kres_s <- 0.111701 # /h, Release rate constant of phagocytic cells; Li et al., 2021
+
+```
+
+```{r}
+
+## Endocytic parameters (assuming fit to Hill coefficient) in liver; 
+## The values will change once we have data to calibrate
+
+## Kmax_li <-  14 # /h, Maximum uptake rate constant of phagocytic cells	; Li et al., 2021
+K50_li <- 8 # h,	Time reaching half of Kmax; Li et al., 2021
+nli	<- 4 # unitless, the Hill coefficient; Li et al., 2021
+## Kres_li <- 0.0257	# /h, Release rate constant of phagocytic cells; Li et al., 2021
+
+```
+
+```{r}
+
+## Endocytic parameters (assuming fit to Hill coefficient) in kidney; 
+## The values will change once we have data to calibrate
+
+## Kmax_k <- 4.5	# /h, Maximum uptake rate constant of phagocytic cells	; Li et al., 2021
+K50_k	<- 0.1 # h,	Time reaching half of Kmax; Li et al., 2021
+nk <- 0.1 # unitless, the Hill coefficient; Li et al., 2021									
+## Kres_k <- 1.60941e-8 # /h, Release rate constant of phagocytic cells; Li et al., 2021
+
+```
+
+```{r}
+
+## Endocytic parameters (assuming fit to Hill coefficient) in brain; 
+## The values will change once we have data to calibrate
+
+## Kmax_br	<- 16.1	# /h,	Maximum uptake rate constant of phagocytic cells; Li et al., 2014
+K50_br <- 0.1 # h,	Time reaching half of Kmax; Lin et al., 2016 (generic value for 100 nm)
+nbr	<- 0.1 # unitless, the Hill coefficient; Lin et al., 2016 (generic value for 100 nm)
+## Kres_br <- 4.9e-19 # /h, release rate constant of phagocytic cells; Li et al., 2014
+
+```
+
+```{r}
+
+## Endocytic parameters (assuming fit to Hill coefficient) in rest of body;
+## The values will change once we have data to calibrate
+
+## Kmax_res <- 20.1296	# /h,	Maximum uptake rate constant of phagocytic cells; Li et al., 2021
+K50_res	<- 0.034 # h, Time reaching half of Kmax; Li et al., 2021
+nres <- 0.1	# unitless,	the Hill coefficient; Li et al., 2021
+## Kres_res <- 3.37e-6	# /h, Release rate constant of phagocytic cells; Li et al., 2021
+
+```
+
+```{r}
+
+## Clearance rate constant
+Kfec <- 0.53 # /h, Fecal clearance; Lin et al., 2016:
+KbileC <- 0.0012 # L/h/kg^0.75, Biliary clearance; Lin et al., 2016
+KurineC  <- 0.00012 # L/h/kg^0.75, Urinary clearance; Lin et al., 2016
+
+```
+
+```{r}
+
+## MAIN calculation
+## Total intake dose
+Iinh_ua	<- Iinh*fua		
+Iinh_tra <- Iinh*ftra	
+Iinh_pul <- Iinh*fpul	
+Iing <- Iing
+Total_dose	<- Iinh_ua + Iinh_tra + Iinh_pul + Iing 
+
+```
+
+```{r}
+
+## Total cardiac output and fraction of blood flow to tissues (L/h)
+QC <- QCC*BW^(0.75)
+Qh <- QC*QhC
+Qgi <- QC*QgiC
+Qs <- QC*QsC
+Qli <- QC*QliC
+Qk <- QC*QkC
+Qbr <- QC*QbrC
+Qres <- QC*(1 - QhC - QgiC - QsC - QliC - QkC - QbrC)
+QBal <- QC - (Qh + Qgi + Qs + Qli + Qk + Qbr + Qres)
+Qlym <- KlymC # Lymphatic system is not part of systemic circulation
+
+```
+
+```{r}
+
+## Organ volumes (L; kg)
+Va <- 0.2*BW*VbloodC 
+Vv <- 0.8*BW*VbloodC
+Vblood <- Va + Vv
+Vua	<- BW*VuaC
+Vtra <- BW*VtraC
+Vpul <- BW*VpulC
+Vh <- BW*VhC
+Vlum <- BW*VlumC
+Vgi <-  BW*VgiC
+Vli <- BW*VliC
+Vs <- BW*VsC
+Vk <- BW*VkC
+Vbr <- BW*VbrC
+Vlym <- BW*VlymC
+Vres <- BW*(1 - Va - Vv - VuaC - VtraC - VpulC - VhC - VlumC - VgiC - VliC - VsC - VkC - VbrC - VlymC)   
+VBal <- BW - (Va + Vv + Vua - Vtra + Vpul + Vh + Vlum + Vgi + Vli + Vs + Vk + Vbr + Vlym + Vres)
+
+```
+
+```{r}
+
+## Organ blood (capillary) volumes (L)
+VpulB <- Vpul*BVpul  
+VhB <- Vh*BVh    
+VgiB <- Vgi*BVgi 
+VsB <- Vs*BVs  
+VliB <- Vli*BVli       
+VkB <- Vk*BVk    
+VbrB <- Vbr*BVbr    
+VresB <-  Vres*BVres       
+
+```
+
+```{r}
+
+## Organ tissue (interstitial) volumes (L)
+VpulT <- Vpul-VpulB
+VhT <- Vh-VhB
+VhT <- Vh-VhB
+VgiT <- Vgi-VgiB
+VsT <- Vs-VsB
+VliT <- Vli-VliB
+VkT <- Vk-VkB    
+VbrT <- Vbr-VbrB
+VresT <- Vres-VresB
+
+```
+
+```{r}
+
+## Lymphatic fluid flow rates to the different tissues (L/h)
+## first, calculate the lymphatic rates from rest of body, then ensure the mass balance
+Kres_lymC <- KlymC - (Kpul_lymC + Kh_lymC + Kgi_lymC + Ks_lymC + Kli_lymC 
+                      + Kk_lymC + Kbr_lymC)
+Klym_BalC <- KlymC - (Kpul_lymC + Kh_lymC + Kgi_lymC + Ks_lymC + Kli_lymC 
+                      + Kk_lymC + Kbr_lymC + Kres_lymC)
+
+## Then, calculate the transfer rate from tissues to lymph (/h, divided by tissue volume)
+Kpul_lym <- Kpul_lymC/VpulT
+Kh_lym <- Kh_lymC/VhT
+Kgi_lym	<- Kgi_lymC/VgiT
+Ks_lym <- Ks_lymC/VsT
+Kli_lym <- Kli_lymC/VliT
+Kk_lym <- Kk_lymC/VkT
+Kbr_lym <- Kbr_lymC/VbrT
+Kres_lym <- Kres_lymC/VresT
+Klym_ven <- KlymC/Vv # total lymphatic flow rate will go to the venous blood
+
+```
+
+
+```{r}
+
+## Excretion rate
+
+Kbile <- KbileC*BW^(0.75)
+Kurine <- KurineC*BW^(0.75)
+
+```
+
+```{r}
+
+# Collect all outputs into a data frame
+output <- data.frame(
+  Parameter = c("Iinh", "Iing", "fua", "ftra", "fpul", "fexh", "Kua_lum", "Kua_tra", "Ktra_lum", "Ktra_pul", "Kpul_ua", "Kpul_tra", "Klum_gi", "VuaC", "VtraC", "VpulC", "VhC", "VlumC", "VgiC", "VsC", "VliC", "VkC", "VbrC", "VbloodC", "VlymC", "BVpul", "BVh", "BVgi", "BVs", "BVli", "BVk", "BVbr", "BVres", "KlymC", "Kpul_lymC", "Kh_lymC", "Kgi_lymC", "Ks_lymC", "Kli_lymC", "Kk_lymC", "Kbr_lymC", "Ppul", "PXh", "Pgi", "Ps", "Pli", "Pk", "Pbr", "Plym", "Pres","Xpul", "Xh", "Xgi", "Xs", "Xli", "Xk", "Xbr", "Xlym", "Xres", "Kmax_blood", "Kmax_pul", "Kmax_s", "Kmax_gi", "Kmax_li", "Kmax_k", "Kmax_br", "Kmax_h", "Kmax_res", "Kres_pul", "Kres_s", "Kres_gi", "Kres_li", "Kres_k", "Kres_br", "Kres_h", "Kres_res", "PCca_a", "PCcap_v", "PCcap_pul", "PCcap_gi", "PCcap_s", "PCcap_li", "PCcap_k", "PCcap_br", "PCcap_h", "PCcap_res", "APC_a", "APC_v", "APC_pul", "APC_gi", "APC_s", "APC_li", "APC_k", "APC_br", "APC_h", "APC_res", "K50_blood", "K50_pul", "K50_s", "K50_gi", "K50_li", "K50_k", "K50_br", "K50_h", "K50_res", "nblood", "npul", "ns", "ngi", "nli", "nk", "nbr", "nh", "nres", "Kfec", "KbileC", "KurineC", "Iinh_ua", "Iinh_tra", "Iinh_pul", "Total_dose", "QC", "Qh", "Qgi", "Qs", "Qli", "Qk", "Qbr", "Qres", "QBal", "Qlym",  "Va", "Vv", "Vblood", "Vua", "Vtra", "Vpul", "Vh", "Vlum", "Vgi", "Vli", "Vs", "Vk", "Vbr", "Vlym", "Vres", "VBal", "VpulB", "VhB", "VgiB", "VliB", "VsB", "VkB", "VbrB", "VresB", "VpulT", "VhT", "VgiT", "VliT", "VsT", "VkT", "VbrT", "VresT", "Kres_lymC", "Klym_BalC", "Kpul_lym", "Kh_lym", "Kgi_lym", "Ks_lym", "Kli_lym", "Kk_lym", "Kbr_lym", "Klym_ven", "Kbile", "Kurine"),
+  Value = c(Iinh, Iing, fua, ftra, fpul, fexh, Kua_lum, Kua_tra, Ktra_lum, Ktra_pul, Kpul_ua, Kpul_tra, Klum_gi, VuaC, VtraC, VpulC, VhC, VlumC, VgiC, VsC, VliC, VkC, VbrC, VbloodC, VlymC, BVpul, BVh, BVgi, BVs, BVli, BVk, BVbr, BVres, KlymC, Kpul_lymC, Kh_lymC, Kgi_lymC, Ks_lymC, Kli_lymC, Kk_lymC, Kbr_lymC, Ppul, Ph, Pgi, Ps, Pli, Pk, Pbr, Plym, Pres, Xpul, Xh, Xgi, Xs, Xli, Xk, Xbr, Xlym, Xres, Kmax_blood, Kmax_pul, Kmax_s, Kmax_gi, Kmax_li, Kmax_k, Kmax_br, Kmax_h, Kmax_res, Kres_pul, Kres_s, Kres_gi, Kres_li, Kres_k, Kres_br, Kres_h, Kres_res, PCcap_a, PCcap_v, PCcap_pul, PCcap_gi, PCcap_s, PCcap_li, PCcap_k, PCcap_br, PCcap_h, PCcap_res, APC_a, APC_v, APC_pul, APC_gi, APC_s, APC_li, APC_k, APC_br, APC_h, APC_res, K50_blood, K50_pul, K50_s, K50_gi, K50_li, K50_k, K50_br, K50_h, K50_res, nblood, npul, ns, ngi, nli, nk, nbr, nh, nres, Kfec, KbileC, KurineC, Iinh_ua, Iinh_tra, Iinh_pul, Total_dose, QC, Qh, Qgi, Qs, Qli, Qk, Qbr, Qres, QBal, Qlym, Va, Vv, Vblood, Vua, Vtra, Vpul, Vh, Vlum, Vgi, Vli, Vs, Vk, Vbr, Vlym, Vres, VBal, VpulB, VhB, VgiB, VliB, VsB, VkB, VbrB, VresB, VpulT, VhT, VgiT, VliT, VsT, VkT, VbrT, VresT, Kres_lymC, Klym_BalC, Kpul_lym, Kh_lym, Kgi_lym, Ks_lym, Kli_lym, Kk_lym, Kbr_lym, Klym_ven, Kbile, Kurine)
+)
+
+# Save the output data frame to a CSV file
+write.csv(output, file = "model_parameters_init.csv", row.names = FALSE)
+
+```

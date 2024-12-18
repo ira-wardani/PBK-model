@@ -1,0 +1,138 @@
+---
+title: "Distribution of model parameters"
+author: Ira Wardani
+advisor: Nur Hazimah Mohammed Nor, Merel Kooi, Albert A Koelmans
+date: November 2024
+structure: Respiratory system (upper airways, tracheobronchial region, pulmonary region), lumen, GIT, spleen, liver, kidney, heart, brain, rest
+output: html_document
+---
+
+
+```{r}
+
+## set working directory
+setwd("D:/PBK model")
+
+```
+
+```{r}
+
+# Load necessary library
+library(ggplot2)
+
+```
+
+```{r}
+
+# Define parameters based on your data
+
+parameters <- list(
+  Iing = list(dist = "normal", mean = 50, sd = (70 - 30) / 3.92), # SD estimated from 95% CI
+  fabs = list(dist = "normal", mean = 0.00003296, sd = (0.0000423 - 0.000006) / 3.92), # SD estimated from 95% CI
+  Kgi_lym = list(dist = "beta", shape1 = 5, shape2 = 2), # Beta skewed to the left
+  Kfec = list(dist = "normal", mean = 0.719, sd = (1.32 - 0.5) / 3.92), # SD estimated from 95% CI
+  Kmax_gi = list(dist = "beta", shape1 = 3, shape2 = 1.5), # Beta skewed to the left
+  K50_gi = list(dist = "beta", shape1 = 5, shape2 = 2), # Beta skewed to the left
+  Krelease_gi = list(dist = "beta", shape1 = 4, shape2 = 1.2), # Beta skewed to the left
+  ngi = list(dist = "beta", shape1 = 3, shape2 = 1.5) # Beta skewed to the left
+)
+
+```
+
+```{r}
+
+# Function to sample from specified distributions
+sample_parameter <- function(param, n) {
+  if (param$dist == "normal") {
+    return(rnorm(n, mean = param$mean, sd = param$sd))
+  } else if (param$dist == "beta") {
+    return(rbeta(n, shape1 = param$shape1, shape2 = param$shape2))
+  } else {
+    stop("Unsupported distribution type.")
+  }
+}
+
+# Number of samples
+n_samples <- 10000
+
+```
+
+```{r}
+
+# Initialize a matrix to store all sampled data
+sample_matrix <- matrix(nrow = n_samples, ncol = length(parameters))
+colnames(sample_matrix) <- names(parameters)
+
+# Generate samples for each parameter and store them in the matrix
+for (param_name in names(parameters)) {
+  param <- parameters[[param_name]]
+  sample_matrix[, param_name] <- sample_parameter(param, n_samples)
+}
+
+# Save the matrix to a CSV file
+write.csv(sample_matrix, file = "model_parameter_samples_2.csv", row.names = FALSE)
+
+```
+
+```{r}
+
+# Plot histograms for all distributions
+
+# Save all plots to a PNG file
+
+output_file <- "parameter_distributions.png" # Output file name
+png(output_file, width = 1500, height = 1200) # Open a PNG device with specified dimensions
+
+# Set up the plotting layout
+par(mfrow = c(3, 3), mar = c(4, 4, 3, 2), oma = c(2, 2, 4, 2))  # Adjust margins for clarity
+
+for (param_name in names(parameters)) {
+  # Get the samples for the current parameter
+  samples <- sample_matrix[, param_name]
+  
+  # Calculate mean and standard deviation
+  mean_val <- mean(samples)
+  sd_val <- sd(samples)
+  
+  # Create the histogram with improved aesthetics
+  hist_data <- hist(
+    samples,
+    main = paste("Distribution of", param_name),
+    xlab = param_name,
+    col = "steelblue",     # Consistent and aesthetic color
+    border = "white",      # Clean borders
+    las = 1,               # Rotate y-axis labels for readability
+    cex.main = 1.5,        # Larger title font
+    cex.lab = 1.2          # Larger axis label font
+  )
+  
+  # Determine the legend position for top left
+  legend_x <- min(hist_data$breaks)  # Use the minimum x value
+  legend_y <- max(hist_data$counts) * 0.9  # Slightly below the top
+  
+  # Add mean and SD as text annotations in top-left
+  legend_text <- paste0("Mean: ", format(mean_val, digits = 2, nsmall = 2), 
+                        "\nSD: ", format(sd_val, digits = 2, nsmall = 2))
+  text(x = legend_x, 
+       y = legend_y, 
+       labels = legend_text, 
+       adj = c(0, 1),     # Left-aligned
+       cex = 1.0,         # Slightly smaller font
+       col = "darkred")   # Highlighted text color
+}
+
+# Add an overarching title for the plots
+mtext("Parameter Distributions", outer = TRUE, cex = 1.5, font = 2)
+
+
+```
+
+```{r}
+
+# Restore default plotting layout
+par(mfrow = c(1, 1))
+
+cat("Samples saved to model_parameter_samples_2.csv\n")
+
+```
+
